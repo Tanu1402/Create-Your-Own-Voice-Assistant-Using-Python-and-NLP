@@ -1,0 +1,86 @@
+import sounddevice as sd
+import numpy as np
+import pyttsx3
+import pywhatkit
+import datetime
+import wikipedia
+import pyjokes
+import sys
+import speech_recognition as sr
+
+# Initialize text-to-speech engine
+engine = pyttsx3.init()
+voices = engine.getProperty('voices')
+if len(voices) > 1:
+    engine.setProperty('voice', voices[1].id)
+else:
+    engine.setProperty('voice', voices[0].id)
+
+def engine_talk(text):
+    print(f"Alexa is saying: {text}")
+    engine.say(text)
+    engine.runAndWait()
+
+# Audio capturing function using `sounddevice` and `speech_recognition`
+def user_commands():
+    duration = 5  # seconds to record audio
+    sample_rate = 44100  # Sampling rate
+    recognizer = sr.Recognizer()
+
+    try:
+        print("Start Speaking!!")
+        # Record audio for the specified duration
+        audio = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1, dtype='int16')
+        sd.wait()  # Wait until recording is finished
+
+        # Convert the numpy array (audio data) to an audio file format
+        audio_data = sr.AudioData(audio.tobytes(), sample_rate, 2)
+        command = recognizer.recognize_google(audio_data)
+        command = command.lower()
+        if 'alexa' in command:
+            command = command.replace('alexa', '')
+            print(f"User said: {command}")
+            return command
+    except sr.UnknownValueError:
+        print("Sorry, I did not catch that.")
+    except sr.RequestError as e:
+        print(f"Could not request results; {e}")
+    except Exception as e:
+        print(f"Error: {e}")
+    return ""
+
+def run_alexa():
+    command = user_commands()
+    if command:
+        if 'play' in command:
+            song = command.replace('play', '')
+            engine_talk('Playing ' + song)
+            pywhatkit.playonyt(song)
+        elif 'time' in command:
+            time = datetime.datetime.now().strftime('%I:%M %p')
+            engine_talk('The current time is ' + time)
+        elif 'who is' in command:
+            name = command.replace('who is', '').strip()  # Ensure no leading/trailing spaces
+            try:
+                info = wikipedia.summary(name, 1)
+                print(info)
+                engine_talk(info)
+            except wikipedia.exceptions.DisambiguationError as e:
+                engine_talk(f"Could you please specify? I found multiple results: {e.options}")
+            except wikipedia.exceptions.PageError:
+                engine_talk(f"Sorry, I couldn't find any information on {name}.")
+            except wikipedia.exceptions.RedirectError:
+                engine_talk("The page has been redirected.")
+            except Exception as e:
+                engine_talk(f"An error occurred: {e}")
+        elif 'joke' in command:
+            engine_talk(pyjokes.get_joke())
+        elif 'stop' in command:
+            sys.exit()
+        else:
+            engine_talk("I could not hear you properly.")
+    else:
+        engine_talk("I did not catch that. Please speak again.")
+
+while True:
+    run_alexa()
